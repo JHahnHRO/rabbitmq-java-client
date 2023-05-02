@@ -1,4 +1,4 @@
-// Copyright (c) 2007-2020 VMware, Inc. or its affiliates.  All rights reserved.
+// Copyright (c) 2007-2023 VMware, Inc. or its affiliates.  All rights reserved.
 //
 // This software, the RabbitMQ Java client library, is triple-licensed under the
 // Mozilla Public License 2.0 ("MPL"), the GNU General Public License version 2
@@ -22,6 +22,7 @@ import com.rabbitmq.client.impl.recovery.AutorecoveringConnection;
 import com.rabbitmq.client.impl.recovery.RecoveredQueueNameSupplier;
 import com.rabbitmq.client.impl.recovery.RetryHandler;
 import com.rabbitmq.client.impl.recovery.TopologyRecoveryFilter;
+import com.rabbitmq.client.observation.ObservationCollector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -138,6 +139,7 @@ public class ConnectionFactory implements Cloneable {
     private RecoveryDelayHandler recoveryDelayHandler;
 
     private MetricsCollector metricsCollector;
+    private ObservationCollector observationCollector = ObservationCollector.NO_OP;
 
     private boolean nio = false;
     private FrameHandlerFactory frameHandlerFactory;
@@ -942,6 +944,15 @@ public class ConnectionFactory implements Cloneable {
     }
 
     /**
+     *
+     * @since 5.18.0
+     * @param observationCollector
+     */
+    public void setObservationCollector(ObservationCollector observationCollector) {
+        this.observationCollector = observationCollector;
+    }
+
+    /**
      * Set a {@link CredentialsRefreshService} instance to handle credentials refresh if appropriate.
      * <p>
      * Each created connection will register to the refresh service to send an AMQP <code>update.secret</code>
@@ -1207,7 +1218,8 @@ public class ConnectionFactory implements Cloneable {
             // see com.rabbitmq.client.impl.recovery.RecoveryAwareAMQConnectionFactory#newConnection
             // No Sonar: no need to close this resource because we're the one that creates it
             // and hands it over to the user
-            AutorecoveringConnection conn = new AutorecoveringConnection(params, fhFactory, addressResolver, metricsCollector); //NOSONAR
+            AutorecoveringConnection conn = new AutorecoveringConnection(
+                params, fhFactory, addressResolver, metricsCollector, observationCollector); //NOSONAR
 
             conn.init();
             return conn;
@@ -1273,7 +1285,7 @@ public class ConnectionFactory implements Cloneable {
     }
 
     protected AMQConnection createConnection(ConnectionParams params, FrameHandler frameHandler, MetricsCollector metricsCollector) {
-        return new AMQConnection(params, frameHandler, metricsCollector);
+        return new AMQConnection(params, frameHandler, metricsCollector, observationCollector);
     }
 
     /**
